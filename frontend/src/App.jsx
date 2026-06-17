@@ -6,12 +6,14 @@ export default function App() {
   const [jd, setJd] = useState("")
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
   const analyze = async () => {
     if (!resume.trim() || !jd.trim()) {
-      alert("Please paste both your resume and the job description")
+      setError("Both fields are required before analyzing.")
       return
     }
+    setError("")
     setLoading(true)
     setResult(null)
     try {
@@ -21,89 +23,209 @@ export default function App() {
       })
       setResult(res.data)
     } catch (e) {
-      alert("Error — check your backend is running")
+      setError(e.response?.data?.detail || "Something went wrong. Check that the backend is running.")
     }
     setLoading(false)
   }
 
   const scoreColor = (score) => {
-    if (score >= 75) return "bg-emerald-500"
-    if (score >= 50) return "bg-amber-500"
-    return "bg-red-500"
+    if (score >= 75) return "#3d8b6e"
+    if (score >= 50) return "#b8893a"
+    return "#b8463f"
+  }
+
+  const scoreLabel = (score) => {
+    if (score >= 75) return "Strong match"
+    if (score >= 50) return "Partial match"
+    return "Needs work"
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-6">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-semibold text-slate-900 mb-1">AI Resume Tailor</h1>
-        <p className="text-slate-500 mb-8">Paste your resume and a job description to get an ATS score and tailored rewrites.</p>
+    <div style={{ minHeight: "100vh", background: "#f4f6f8", color: "#1c2733", fontFamily: "'Source Serif 4', Georgia, serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+        ::selection { background: #4a5a8b22; }
+        textarea::placeholder { color: #9aa5b1; font-family: 'Inter', sans-serif; }
+        textarea:focus { outline: none; border-color: #4a5a8b !important; box-shadow: 0 0 0 3px #4a5a8b14; }
+        button:hover { opacity: 0.88; }
+        body { margin: 0; }
+      `}</style>
 
-        <div className="grid md:grid-cols-2 gap-4 mb-6">
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: "72px 28px 96px" }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: 56 }}>
+          <p style={{
+            fontFamily: "'Inter', sans-serif", fontSize: 12.5, letterSpacing: 2,
+            color: "#4a5a8b", textTransform: "uppercase", margin: "0 0 14px", fontWeight: 600
+          }}>
+            Resume analysis
+          </p>
+          <h1 style={{
+            fontSize: 44, fontWeight: 500, letterSpacing: -0.5,
+            margin: "0 0 14px", color: "#1c2733", lineHeight: 1.15
+          }}>
+            Tailor your resume,<br />one role at a time.
+          </h1>
+          <p style={{
+            fontFamily: "'Inter', sans-serif", color: "#5b6675", fontSize: 15.5,
+            margin: 0, maxWidth: 480, lineHeight: 1.65
+          }}>
+            Paste your resume and a job description below. You'll get a match score, missing keywords, and rewritten bullet points.
+          </p>
+        </div>
+
+        {/* Input grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Your resume</label>
+            <label style={{
+              fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+              color: "#1c2733", marginBottom: 10, display: "block"
+            }}>
+              Your resume
+            </label>
             <textarea
               value={resume}
               onChange={e => setResume(e.target.value)}
               placeholder="Paste your resume text here..."
-              className="w-full h-72 p-4 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
+              style={{
+                width: "100%", height: 300, padding: 18, resize: "none",
+                background: "#ffffff", border: "1px solid #d8dee5", borderRadius: 10,
+                color: "#1c2733", fontFamily: "'Inter', sans-serif", fontSize: 13.5,
+                lineHeight: 1.65, boxSizing: "border-box", transition: "border-color .15s, box-shadow .15s"
+              }}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Job description</label>
+            <label style={{
+              fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+              color: "#1c2733", marginBottom: 10, display: "block"
+            }}>
+              Job description
+            </label>
             <textarea
               value={jd}
               onChange={e => setJd(e.target.value)}
               placeholder="Paste the job description here..."
-              className="w-full h-72 p-4 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 resize-none"
+              style={{
+                width: "100%", height: 300, padding: 18, resize: "none",
+                background: "#ffffff", border: "1px solid #d8dee5", borderRadius: 10,
+                color: "#1c2733", fontFamily: "'Inter', sans-serif", fontSize: 13.5,
+                lineHeight: 1.65, boxSizing: "border-box", transition: "border-color .15s, box-shadow .15s"
+              }}
             />
           </div>
         </div>
 
+        {error && (
+          <div style={{
+            background: "#fbeeed", border: "1px solid #e8c4c1", color: "#9c3a33",
+            padding: "12px 16px", borderRadius: 8, fontSize: 13.5, marginBottom: 22,
+            fontFamily: "'Inter', sans-serif"
+          }}>
+            {error}
+          </div>
+        )}
+
         <button
           onClick={analyze}
           disabled={loading}
-          className="px-6 py-3 bg-slate-900 text-white rounded-xl font-medium text-sm hover:bg-slate-800 disabled:opacity-50 transition"
+          style={{
+            padding: "14px 30px", background: loading ? "#c4cad3" : "#1c2733",
+            color: "#ffffff", border: "none", borderRadius: 9,
+            fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 14,
+            cursor: loading ? "default" : "pointer", transition: "opacity .15s"
+          }}
         >
           {loading ? "Analyzing..." : "Analyze resume"}
         </button>
 
         {result && (
-          <div className="mt-10 space-y-8">
+          <div style={{ marginTop: 56, display: "flex", flexDirection: "column", gap: 18 }}>
+
             {/* Score */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-baseline justify-between mb-3">
-                <h2 className="text-sm font-medium text-slate-500">ATS match score</h2>
-                <span className="text-2xl font-semibold text-slate-900">{result.ats_score}%</span>
+            <div style={{
+              background: "#ffffff", border: "1px solid #e1e6eb", borderRadius: 14,
+              padding: 32
+            }}>
+              <p style={{
+                fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+                color: "#5b6675", margin: "0 0 18px"
+              }}>
+                ATS match score
+              </p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 20 }}>
+                <span style={{ fontSize: 52, fontWeight: 500, color: "#1c2733", lineHeight: 1 }}>
+                  {result.ats_score}%
+                </span>
+                <span style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+                  color: scoreColor(result.ats_score), marginLeft: "auto",
+                  background: `${scoreColor(result.ats_score)}14`,
+                  padding: "6px 14px", borderRadius: 20
+                }}>
+                  {scoreLabel(result.ats_score)}
+                </span>
               </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${scoreColor(result.ats_score)} transition-all`}
-                  style={{ width: `${result.ats_score}%` }}
-                />
+              <div style={{ width: "100%", height: 8, background: "#eef1f4", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", width: `${result.ats_score}%`,
+                  background: scoreColor(result.ats_score), transition: "width .6s ease",
+                  borderRadius: 4
+                }} />
               </div>
             </div>
 
             {/* Missing keywords */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-sm font-medium text-slate-500 mb-4">Missing keywords</h2>
-              <div className="flex flex-wrap gap-2">
-                {result.missing_keywords.map((k, i) => (
-                  <span key={i} className="px-3 py-1 bg-red-50 text-red-700 text-sm rounded-full border border-red-100">
-                    {k}
-                  </span>
-                ))}
+            {result.missing_keywords.length > 0 && (
+              <div style={{ background: "#ffffff", border: "1px solid #e1e6eb", borderRadius: 14, padding: 32 }}>
+                <p style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+                  color: "#5b6675", margin: "0 0 18px"
+                }}>
+                  Missing keywords
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  {result.missing_keywords.map((k, i) => (
+                    <span key={i} style={{
+                      padding: "7px 14px", background: "#fbeeed", color: "#9c3a33",
+                      fontFamily: "'Inter', sans-serif", fontSize: 13, borderRadius: 20,
+                      border: "1px solid #f0d5d2"
+                    }}>
+                      {k}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Rewritten bullets */}
             {result.rewritten_bullets.length > 0 && (
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
-                <h2 className="text-sm font-medium text-slate-500 mb-4">Rewritten bullets</h2>
-                <div className="space-y-4">
+              <div style={{ background: "#ffffff", border: "1px solid #e1e6eb", borderRadius: 14, padding: 32 }}>
+                <p style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+                  color: "#5b6675", margin: "0 0 20px"
+                }}>
+                  Rewritten bullets
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                   {result.rewritten_bullets.map((b, i) => (
-                    <div key={i} className="border border-slate-100 rounded-lg p-4">
-                      <p className="text-sm text-red-600 mb-2"><span className="font-medium">Before:</span> {b.original}</p>
-                      <p className="text-sm text-emerald-700"><span className="font-medium">After:</span> {b.rewritten}</p>
+                    <div key={i} style={{
+                      paddingBottom: i < result.rewritten_bullets.length - 1 ? 18 : 0,
+                      borderBottom: i < result.rewritten_bullets.length - 1 ? "1px solid #eef1f4" : "none"
+                    }}>
+                      <p style={{
+                        margin: "0 0 8px", fontSize: 14, color: "#9aa5b1",
+                        fontFamily: "'Inter', sans-serif", lineHeight: 1.6,
+                        textDecoration: "line-through", textDecorationColor: "#d8dee5"
+                      }}>
+                        {b.original}
+                      </p>
+                      <p style={{
+                        margin: 0, fontSize: 15, color: "#1c2733", lineHeight: 1.65
+                      }}>
+                        {b.rewritten}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -111,16 +233,32 @@ export default function App() {
             )}
 
             {/* Tips */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-sm font-medium text-slate-500 mb-4">ATS tips</h2>
-              <ul className="space-y-2">
-                {result.ats_tips.map((t, i) => (
-                  <li key={i} className="text-sm text-slate-700 flex gap-2">
-                    <span className="text-slate-400">•</span> {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {result.ats_tips.length > 0 && (
+              <div style={{ background: "#ffffff", border: "1px solid #e1e6eb", borderRadius: 14, padding: 32 }}>
+                <p style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+                  color: "#5b6675", margin: "0 0 18px"
+                }}>
+                  Recommendations
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {result.ats_tips.map((t, i) => (
+                    <div key={i} style={{ display: "flex", gap: 12 }}>
+                      <span style={{
+                        width: 6, height: 6, borderRadius: "50%", background: "#4a5a8b",
+                        flexShrink: 0, marginTop: 8
+                      }} />
+                      <p style={{
+                        margin: 0, fontSize: 14.5, color: "#3a4452",
+                        fontFamily: "'Inter', sans-serif", lineHeight: 1.65
+                      }}>
+                        {t}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
