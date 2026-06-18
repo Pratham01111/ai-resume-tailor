@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import axios from "axios"
 
 export default function App() {
@@ -9,6 +9,11 @@ export default function App() {
   const [error, setError] = useState("")
   const [copiedIndex, setCopiedIndex] = useState(null)
   const [copiedAll, setCopiedAll] = useState(false)
+  const [inputMode, setInputMode] = useState("paste") // "paste" or "upload"
+  const [fileName, setFileName] = useState("")
+  const [extracting, setExtracting] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
+  const fileInputRef = useRef(null)
 
   const analyze = async () => {
     if (!resume.trim() || !jd.trim()) {
@@ -30,6 +35,34 @@ export default function App() {
     setLoading(false)
   }
 
+  const handleFileUpload = async (file) => {
+    if (!file) return
+    const validTypes = [".pdf", ".docx"]
+    const isValid = validTypes.some(ext => file.name.toLowerCase().endsWith(ext))
+    if (!isValid) {
+      setError("Only PDF and DOCX files are supported.")
+      return
+    }
+
+    setError("")
+    setExtracting(true)
+    setFileName(file.name)
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const res = await axios.post("http://localhost:8000/extract-text", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      })
+      setResume(res.data.text)
+    } catch (e) {
+      setError(e.response?.data?.detail || "Could not read this file.")
+      setFileName("")
+    }
+    setExtracting(false)
+  }
+
   const copyToClipboard = async (text, index) => {
     await navigator.clipboard.writeText(text)
     setCopiedIndex(index)
@@ -43,29 +76,22 @@ export default function App() {
     setTimeout(() => setCopiedAll(false), 1500)
   }
 
-  const downloadResults = () => {
-    const lines = []
-    lines.push(`ATS MATCH SCORE: ${result.ats_score}%`)
-    lines.push("")
-    lines.push("MISSING KEYWORDS:")
-    result.missing_keywords.forEach(k => lines.push(`- ${k}`))
-    lines.push("")
-    lines.push("REWRITTEN BULLETS:")
-    result.rewritten_bullets.forEach(b => {
-      lines.push(`Before: ${b.original}`)
-      lines.push(`After: ${b.rewritten}`)
-      lines.push("")
-    })
-    lines.push("RECOMMENDATIONS:")
-    result.ats_tips.forEach(t => lines.push(`- ${t}`))
-
-    const blob = new Blob([lines.join("\n")], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "resume-analysis.txt"
-    a.click()
-    URL.revokeObjectURL(url)
+  const downloadResults = async () => {
+    setDownloadingPdf(true)
+    try {
+      const res = await axios.post("http://localhost:8000/generate-report", result, {
+        responseType: "blob"
+      })
+      const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }))
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "resume-analysis.pdf"
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError("Could not generate the PDF report. Try again.")
+    }
+    setDownloadingPdf(false)
   }
 
   const scoreColor = (score) => {
@@ -91,6 +117,7 @@ export default function App() {
         body { margin: 0; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .skeleton { animation: pulse 1.4s ease-in-out infinite; }
+        .dropzone:hover { border-color: #4a5a8b !important; background: #f0f2f8 !important; }
       `}</style>
 
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "72px 28px 96px" }}>
@@ -113,31 +140,109 @@ export default function App() {
             fontFamily: "'Inter', sans-serif", color: "#5b6675", fontSize: 15.5,
             margin: 0, maxWidth: 480, lineHeight: 1.65
           }}>
-            Paste your resume and a job description below. You'll get a match score, missing keywords, and rewritten bullet points.
+            Paste or upload your resume and a job description below. You'll get a match score, missing keywords, and rewritten bullet points.
           </p>
         </div>
 
         {/* Input grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
           <div>
-            <label style={{
-              fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
-              color: "#1c2733", marginBottom: 10, display: "block"
-            }}>
-              Your resume
-            </label>
-            <textarea
-              value={resume}
-              onChange={e => setResume(e.target.value)}
-              placeholder="Paste your resume text here..."
-              style={{
-                width: "100%", height: 300, padding: 18, resize: "none",
-                background: "#ffffff", border: "1px solid #d8dee5", borderRadius: 10,
-                color: "#1c2733", fontFamily: "'Inter', sans-serif", fontSize: 13.5,
-                lineHeight: 1.65, boxSizing: "border-box", transition: "border-color .15s, box-shadow .15s"
-              }}
-            />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <label style={{
+                fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: "#1c2733"
+              }}>
+                Your resume
+              </label>
+              <div style={{ display: "flex", gap: 4, background: "#eef1f4", borderRadius: 7, padding: 3 }}>
+                <button
+                  onClick={() => setInputMode("paste")}
+                  style={{
+                    fontFamily: "'Inter', sans-serif", fontSize: 11.5, fontWeight: 600,
+                    padding: "4px 10px", borderRadius: 5, border: "none", cursor: "pointer",
+                    background: inputMode === "paste" ? "#ffffff" : "transparent",
+                    color: inputMode === "paste" ? "#1c2733" : "#5b6675",
+                    boxShadow: inputMode === "paste" ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
+                  }}
+                >
+                  Paste
+                </button>
+                <button
+                  onClick={() => setInputMode("upload")}
+                  style={{
+                    fontFamily: "'Inter', sans-serif", fontSize: 11.5, fontWeight: 600,
+                    padding: "4px 10px", borderRadius: 5, border: "none", cursor: "pointer",
+                    background: inputMode === "upload" ? "#ffffff" : "transparent",
+                    color: inputMode === "upload" ? "#1c2733" : "#5b6675",
+                    boxShadow: inputMode === "upload" ? "0 1px 2px rgba(0,0,0,0.08)" : "none"
+                  }}
+                >
+                  Upload
+                </button>
+              </div>
+            </div>
+
+            {inputMode === "paste" ? (
+              <textarea
+                value={resume}
+                onChange={e => setResume(e.target.value)}
+                placeholder="Paste your resume text here..."
+                style={{
+                  width: "100%", height: 300, padding: 18, resize: "none",
+                  background: "#ffffff", border: "1px solid #d8dee5", borderRadius: 10,
+                  color: "#1c2733", fontFamily: "'Inter', sans-serif", fontSize: 13.5,
+                  lineHeight: 1.65, boxSizing: "border-box", transition: "border-color .15s, box-shadow .15s"
+                }}
+              />
+            ) : (
+              <div
+                className="dropzone"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  e.preventDefault()
+                  handleFileUpload(e.dataTransfer.files[0])
+                }}
+                style={{
+                  width: "100%", height: 300, borderRadius: 10, boxSizing: "border-box",
+                  border: "1.5px dashed #c4cad3", background: "#fafbfc",
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", transition: "border-color .15s, background .15s", textAlign: "center", padding: 24
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx"
+                  onChange={e => handleFileUpload(e.target.files[0])}
+                  style={{ display: "none" }}
+                />
+                {extracting ? (
+                  <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13.5, color: "#5b6675" }}>
+                    Reading {fileName}...
+                  </p>
+                ) : fileName && resume ? (
+                  <>
+                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13.5, fontWeight: 600, color: "#1c2733", margin: "0 0 4px" }}>
+                      {fileName}
+                    </p>
+                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12.5, color: "#3d8b6e", margin: 0 }}>
+                      ✓ Text extracted — click to replace
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13.5, fontWeight: 600, color: "#1c2733", margin: "0 0 4px" }}>
+                      Drop your resume here
+                    </p>
+                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12.5, color: "#9aa5b1", margin: 0 }}>
+                      or click to browse — PDF or DOCX
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+
           <div>
             <label style={{
               fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
@@ -214,13 +319,14 @@ export default function App() {
                 </p>
                 <button
                   onClick={downloadResults}
+                  disabled={downloadingPdf}
                   style={{
                     fontFamily: "'Inter', sans-serif", fontSize: 12.5, fontWeight: 600,
                     color: "#4a5a8b", background: "none", border: "1px solid #d8dee5",
-                    borderRadius: 8, cursor: "pointer", padding: "6px 12px"
+                    borderRadius: 8, cursor: downloadingPdf ? "default" : "pointer", padding: "6px 12px"
                   }}
                 >
-                  Download report
+                  {downloadingPdf ? "Generating..." : "Download PDF report"}
                 </button>
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 20 }}>
