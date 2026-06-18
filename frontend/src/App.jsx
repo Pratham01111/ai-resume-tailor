@@ -24,7 +24,7 @@ export default function App() {
     setLoading(true)
     setResult(null)
     try {
-      const res = await axios.post("https://ai-resume-tailor-mhrw.onrender.com", {
+      const res = await axios.post("https://ai-resume-tailor-mhrw.onrender.com/analyze", {
         resume,
         job_description: jd
       })
