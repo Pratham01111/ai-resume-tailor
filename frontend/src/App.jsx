@@ -7,6 +7,8 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [copiedIndex, setCopiedIndex] = useState(null)
+  const [copiedAll, setCopiedAll] = useState(false)
 
   const analyze = async () => {
     if (!resume.trim() || !jd.trim()) {
@@ -26,6 +28,44 @@ export default function App() {
       setError(e.response?.data?.detail || "Something went wrong. Check that the backend is running.")
     }
     setLoading(false)
+  }
+
+  const copyToClipboard = async (text, index) => {
+    await navigator.clipboard.writeText(text)
+    setCopiedIndex(index)
+    setTimeout(() => setCopiedIndex(null), 1500)
+  }
+
+  const copyAllBullets = async () => {
+    const allText = result.rewritten_bullets.map(b => b.rewritten).join("\n\n")
+    await navigator.clipboard.writeText(allText)
+    setCopiedAll(true)
+    setTimeout(() => setCopiedAll(false), 1500)
+  }
+
+  const downloadResults = () => {
+    const lines = []
+    lines.push(`ATS MATCH SCORE: ${result.ats_score}%`)
+    lines.push("")
+    lines.push("MISSING KEYWORDS:")
+    result.missing_keywords.forEach(k => lines.push(`- ${k}`))
+    lines.push("")
+    lines.push("REWRITTEN BULLETS:")
+    result.rewritten_bullets.forEach(b => {
+      lines.push(`Before: ${b.original}`)
+      lines.push(`After: ${b.rewritten}`)
+      lines.push("")
+    })
+    lines.push("RECOMMENDATIONS:")
+    result.ats_tips.forEach(t => lines.push(`- ${t}`))
+
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "resume-analysis.txt"
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const scoreColor = (score) => {
@@ -49,6 +89,8 @@ export default function App() {
         textarea:focus { outline: none; border-color: #4a5a8b !important; box-shadow: 0 0 0 3px #4a5a8b14; }
         button:hover { opacity: 0.88; }
         body { margin: 0; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .skeleton { animation: pulse 1.4s ease-in-out infinite; }
       `}</style>
 
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "72px 28px 96px" }}>
@@ -140,7 +182,22 @@ export default function App() {
           {loading ? "Analyzing..." : "Analyze resume"}
         </button>
 
-        {result && (
+        {/* Loading skeleton */}
+        {loading && (
+          <div style={{ marginTop: 56, display: "flex", flexDirection: "column", gap: 18 }}>
+            {[120, 90, 160].map((h, i) => (
+              <div key={i} className="skeleton" style={{
+                background: "#ffffff", border: "1px solid #e1e6eb", borderRadius: 14,
+                padding: 32, height: h
+              }}>
+                <div style={{ width: "30%", height: 12, background: "#eef1f4", borderRadius: 4, marginBottom: 16 }} />
+                <div style={{ width: "60%", height: 20, background: "#eef1f4", borderRadius: 4 }} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {result && !loading && (
           <div style={{ marginTop: 56, display: "flex", flexDirection: "column", gap: 18 }}>
 
             {/* Score */}
@@ -148,12 +205,24 @@ export default function App() {
               background: "#ffffff", border: "1px solid #e1e6eb", borderRadius: 14,
               padding: 32
             }}>
-              <p style={{
-                fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
-                color: "#5b6675", margin: "0 0 18px"
-              }}>
-                ATS match score
-              </p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                <p style={{
+                  fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+                  color: "#5b6675", margin: 0
+                }}>
+                  ATS match score
+                </p>
+                <button
+                  onClick={downloadResults}
+                  style={{
+                    fontFamily: "'Inter', sans-serif", fontSize: 12.5, fontWeight: 600,
+                    color: "#4a5a8b", background: "none", border: "1px solid #d8dee5",
+                    borderRadius: 8, cursor: "pointer", padding: "6px 12px"
+                  }}
+                >
+                  Download report
+                </button>
+              </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 20 }}>
                 <span style={{ fontSize: 52, fontWeight: 500, color: "#1c2733", lineHeight: 1 }}>
                   {result.ats_score}%
@@ -202,12 +271,24 @@ export default function App() {
             {/* Rewritten bullets */}
             {result.rewritten_bullets.length > 0 && (
               <div style={{ background: "#ffffff", border: "1px solid #e1e6eb", borderRadius: 14, padding: 32 }}>
-                <p style={{
-                  fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
-                  color: "#5b6675", margin: "0 0 20px"
-                }}>
-                  Rewritten bullets
-                </p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <p style={{
+                    fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600,
+                    color: "#5b6675", margin: 0
+                  }}>
+                    Rewritten bullets
+                  </p>
+                  <button
+                    onClick={copyAllBullets}
+                    style={{
+                      fontFamily: "'Inter', sans-serif", fontSize: 12.5, fontWeight: 600,
+                      color: copiedAll ? "#3d8b6e" : "#4a5a8b", background: "none",
+                      border: "none", cursor: "pointer", padding: "4px 8px"
+                    }}
+                  >
+                    {copiedAll ? "✓ Copied all" : "Copy all"}
+                  </button>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                   {result.rewritten_bullets.map((b, i) => (
                     <div key={i} style={{
@@ -221,11 +302,24 @@ export default function App() {
                       }}>
                         {b.original}
                       </p>
-                      <p style={{
-                        margin: 0, fontSize: 15, color: "#1c2733", lineHeight: 1.65
-                      }}>
-                        {b.rewritten}
-                      </p>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                        <p style={{
+                          margin: 0, fontSize: 15, color: "#1c2733", lineHeight: 1.65
+                        }}>
+                          {b.rewritten}
+                        </p>
+                        <button
+                          onClick={() => copyToClipboard(b.rewritten, i)}
+                          style={{
+                            fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 600,
+                            color: copiedIndex === i ? "#3d8b6e" : "#9aa5b1", background: "none",
+                            border: "none", cursor: "pointer", flexShrink: 0, padding: "2px 6px",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {copiedIndex === i ? "✓" : "Copy"}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
