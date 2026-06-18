@@ -24,7 +24,7 @@ export default function App() {
     setLoading(true)
     setResult(null)
     try {
-      const res = await axios.post("http://localhost:8000/analyze", {
+      const res = await axios.post("https://ai-resume-tailor-mhrw.onrender.com", {
         resume,
         job_description: jd
       })
@@ -52,7 +52,7 @@ export default function App() {
     formData.append("file", file)
 
     try {
-      const res = await axios.post("http://localhost:8000/extract-text", formData, {
+      const res = await axios.post("https://ai-resume-tailor-mhrw.onrender.com/extract-text", formData, {
         headers: { "Content-Type": "multipart/form-data" }
       })
       setResume(res.data.text)
@@ -79,7 +79,7 @@ export default function App() {
   const downloadResults = async () => {
     setDownloadingPdf(true)
     try {
-      const res = await axios.post("http://localhost:8000/generate-report", result, {
+      const res = await axios.post("https://ai-resume-tailor-mhrw.onrender.com/generate-report", result, {
         responseType: "blob"
       })
       const url = URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }))
