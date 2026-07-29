@@ -23,6 +23,7 @@ Paste or upload a resume (PDF, DOCX, or plain text) and a job description, and t
 
 ## Features
 
+- A modern dark UI with animated gradient visuals and glassmorphism cards
 - Paste resume text directly, or upload a PDF/DOCX file
 - Real-time ATS scoring with color-coded match strength
 - Copy individual rewritten bullets or all at once
